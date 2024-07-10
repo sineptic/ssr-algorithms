@@ -16,8 +16,8 @@ pub struct SuperMemory {
     explanation: Option<String>,
 }
 
-impl<'a> Task<'a> for SuperMemory {
-    fn new(
+impl SuperMemory {
+    pub fn new(
         description: String,
         correct_answers: impl IntoIterator<Item = String>,
         explanation: Option<String>,
@@ -29,7 +29,9 @@ impl<'a> Task<'a> for SuperMemory {
             explanation,
         }
     }
+}
 
+impl<'a> Task<'a> for SuperMemory {
     fn get_desctiption(&self) -> &str {
         &self.description
     }

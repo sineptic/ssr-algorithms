@@ -13,8 +13,8 @@ pub struct LeitnerSystem {
     explanation: Option<String>,
 }
 
-impl<'a> Task<'a> for LeitnerSystem {
-    fn new(
+impl LeitnerSystem {
+    pub fn new(
         description: String,
         correct_answers: impl IntoIterator<Item = String>,
         explanation: Option<String>,
@@ -26,7 +26,9 @@ impl<'a> Task<'a> for LeitnerSystem {
             explanation,
         }
     }
+}
 
+impl<'a> Task<'a> for LeitnerSystem {
     fn get_desctiption(&self) -> &str {
         &self.description
     }
