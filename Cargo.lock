@@ -42,7 +42,7 @@ dependencies = [
 
 [[package]]
 name = "ssr-algorithms"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "serde",
  "ssr-core",
@@ -50,9 +50,9 @@ dependencies = [
 
 [[package]]
 name = "ssr-core"
-version = "0.11.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f814ff23b4bee89938c55220782b45931db24faf4d0990b3beddddb871ab8a51"
+checksum = "f991eb19e816b88c2bdaacec1232f23d0b2d4f5548e5c08891624c5f6c41eee4"
 dependencies = [
  "serde",
  "thiserror",

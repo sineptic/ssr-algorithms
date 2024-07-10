@@ -40,14 +40,14 @@ impl<'a> Task<'a> for LeitnerSystem {
     fn complete(
         &mut self,
         mut interaction: impl UserInteraction,
-    ) -> Feedback<impl Iterator<Item = &String>> {
+    ) -> Feedback<impl Iterator<Item = String>> {
         let user_answer = interaction.get_string(None::<String>, &self.description);
         match self.correct_answers.contains(&user_answer) {
             false => {
                 self.level.failure(SystemTime::now());
                 Feedback::WrongAnswer {
-                    correct_answers: self.correct_answers.iter(),
-                    explanation: &self.explanation,
+                    correct_answers: self.correct_answers.clone().into_iter(),
+                    explanation: self.explanation.clone(),
                 }
             }
             true => {

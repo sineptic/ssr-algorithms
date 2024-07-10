@@ -43,7 +43,7 @@ impl<'a> Task<'a> for SuperMemory {
     fn complete(
         &mut self,
         mut interaction: impl ssr_core::task::UserInteraction,
-    ) -> ssr_core::task::Feedback<impl Iterator<Item = &String>> {
+    ) -> Feedback<impl Iterator<Item = String>> {
         let user_answer = interaction.get_string(None::<String>, &self.description);
         match self.correct_answers.contains(&user_answer) {
             false => {
@@ -55,8 +55,8 @@ impl<'a> Task<'a> for SuperMemory {
                 let quality = items[interaction.select_item(Some("choose difficulty"), &items)];
                 self.level.failure((SystemTime::now(), quality));
                 Feedback::WrongAnswer {
-                    correct_answers: self.correct_answers.iter(),
-                    explanation: &self.explanation,
+                    correct_answers: self.correct_answers.clone().into_iter(),
+                    explanation: self.explanation.clone(),
                 }
             }
             true => {
