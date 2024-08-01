@@ -1,22 +1,19 @@
-use level::{Quality, SuperMemoryLevel};
+use level::{Level, Quality};
 use serde::{Deserialize, Serialize};
 use ssr_core::task::{level::TaskLevel, Feedback, Task};
-use std::{
-    collections::HashSet,
-    time::{Duration, SystemTime},
-};
+use std::{collections::HashSet, time::SystemTime};
 
 mod level;
 
 #[derive(Serialize, Deserialize)]
-pub struct SuperMemory {
-    level: SuperMemoryLevel,
+pub struct WriteAnswer {
+    level: Level,
     description: String,
     correct_answers: HashSet<String>,
     explanation: Option<String>,
 }
 
-impl SuperMemory {
+impl WriteAnswer {
     pub fn new(
         description: String,
         correct_answers: impl IntoIterator<Item = String>,
@@ -31,19 +28,21 @@ impl SuperMemory {
     }
 }
 
-impl<'a> Task<'a> for SuperMemory {
+impl<'a> Task<'a> for WriteAnswer {
+    type SharedState = ();
     fn get_desctiption(&self) -> &str {
         &self.description
     }
 
-    fn until_next_repetition(&self) -> Duration {
-        self.level.until_next_repetition()
+    fn next_repetition(&self, retrievability_goal: f64) -> SystemTime {
+        self.level.next_repetition(retrievability_goal)
     }
 
     fn complete(
-        &mut self,
+        mut self,
+        _: &mut (),
         mut interaction: impl ssr_core::task::UserInteraction,
-    ) -> Feedback<impl Iterator<Item = String>> {
+    ) -> (Self, Feedback) {
         let user_answer = interaction.get_string(None::<String>, &self.description);
         match self.correct_answers.contains(&user_answer) {
             false => {
@@ -53,11 +52,16 @@ impl<'a> Task<'a> for SuperMemory {
                     Quality::IncorrectResponseAndSeemedEasyToRecall,
                 ];
                 let quality = items[interaction.select_item(Some("choose difficulty"), &items)];
-                self.level.failure((SystemTime::now(), quality));
-                Feedback::WrongAnswer {
-                    correct_answers: self.correct_answers.clone().into_iter(),
-                    explanation: self.explanation.clone(),
-                }
+                self.level.update(&mut (), (SystemTime::now(), quality));
+                let correct_answers = self.correct_answers.clone().into_iter().collect();
+                let explanation = self.explanation.clone();
+                (
+                    self,
+                    Feedback::WrongAnswer {
+                        correct_answers,
+                        explanation,
+                    },
+                )
             }
             true => {
                 let items = [
@@ -66,8 +70,8 @@ impl<'a> Task<'a> for SuperMemory {
                     Quality::PerfectResponse,
                 ];
                 let quality = items[interaction.select_item(Some("choose difficulty"), &items)];
-                self.level.success((SystemTime::now(), quality));
-                Feedback::CorrectAnswer
+                self.level.update(&mut (), (SystemTime::now(), quality));
+                (self, Feedback::CorrectAnswer)
             }
         }
     }

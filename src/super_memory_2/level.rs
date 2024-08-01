@@ -7,14 +7,14 @@ use std::{
 };
 
 #[derive(Serialize, Deserialize)]
-pub struct SuperMemoryLevel {
+pub struct Level {
     e_factor: f64,
     repetition_number: u32,
     interval: Duration,
     last_repetition: SystemTime,
     repetition_required: bool,
 }
-impl Default for SuperMemoryLevel {
+impl Default for Level {
     fn default() -> Self {
         Self {
             e_factor: 2.5,
@@ -54,8 +54,10 @@ impl Display for Quality {
     }
 }
 
-impl SuperMemoryLevel {
-    fn on_repetition(&mut self, (now, quality): (SystemTime, Quality)) {
+impl<'a> TaskLevel<'a> for Level {
+    type SharedState = ();
+    type Context = (SystemTime, Quality);
+    fn update(&mut self, _: &mut (), (now, quality): Self::Context) {
         let q: f64 = (quality as u8).into();
         self.e_factor = max_by(
             self.e_factor + 0.1 - (5. - q) * (0.08 + (5. - q) * 0.02),
@@ -71,25 +73,12 @@ impl SuperMemoryLevel {
         }
         self.last_repetition = now;
     }
-}
 
-impl TaskLevel for SuperMemoryLevel {
-    type Context = (SystemTime, Quality);
-    fn success(&mut self, ctx: Self::Context) {
-        self.on_repetition(ctx);
-    }
-
-    fn failure(&mut self, ctx: Self::Context) {
-        self.on_repetition(ctx);
-    }
-
-    fn until_next_repetition(&self) -> Duration {
+    fn next_repetition(&self, _retrievability_goal: f64) -> SystemTime {
         if self.repetition_required {
-            Duration::default()
+            SystemTime::now()
         } else {
-            (self.last_repetition + self.interval)
-                .elapsed()
-                .unwrap_or_default()
+            self.last_repetition + self.interval
         }
     }
 }
