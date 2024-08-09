@@ -1,6 +1,6 @@
 use level::Level;
 use serde::{Deserialize, Serialize};
-use ssr_core::task::{level::TaskLevel, Feedback, Task, UserInteraction};
+use ssr_core::task::{level::TaskLevel, Feedback, InterationItem, Task, UserInteraction};
 use std::{collections::HashSet, time::SystemTime};
 
 mod level;
@@ -38,8 +38,15 @@ impl<'a> Task<'a> for WriteAnswer {
         self.level.next_repetition(0.)
     }
 
-    fn complete(mut self, _: &mut (), mut interaction: impl UserInteraction) -> (Self, Feedback) {
-        let user_answer = interaction.get_string(None::<String>, &self.description);
+    fn complete(mut self, _: &mut (), interaction: &mut impl UserInteraction) -> (Self, Feedback) {
+        let user_answer = {
+            let mut user_answer = interaction.interact(vec![
+                InterationItem::Text(self.description.clone()),
+                InterationItem::BlankField,
+            ]);
+            assert!(user_answer.len() == 1);
+            user_answer.swap_remove(0)
+        };
         match self.correct_answers.contains(&user_answer) {
             false => {
                 self.level.update(&mut (), (SystemTime::now(), false));
