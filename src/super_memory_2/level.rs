@@ -9,7 +9,7 @@ use std::{
 #[derive(Serialize, Deserialize)]
 pub struct Level {
     e_factor: f64,
-    repetition_number: u32,
+    strike: u32,
     interval: Duration,
     last_repetition: SystemTime,
     repetition_required: bool,
@@ -18,7 +18,7 @@ impl Default for Level {
     fn default() -> Self {
         Self {
             e_factor: 2.5,
-            repetition_number: 1,
+            strike: 1,
             interval: Default::default(),
             last_repetition: SystemTime::now(),
             repetition_required: false,
@@ -58,20 +58,30 @@ impl<'a> TaskLevel<'a> for Level {
     type SharedState = ();
     type Context = (SystemTime, Quality);
     fn update(&mut self, _: &mut (), (now, quality): Self::Context) {
-        let q: f64 = (quality as u8).into();
+        self.last_repetition = now;
+        const SECS_IN_DAY: u64 = 60 * 60 * 24;
+
+        let q = quality as u8;
+
+        if q >= 3 {
+            self.interval = match self.strike {
+                0 => Duration::from_secs(SECS_IN_DAY),
+                1 => Duration::from_secs(6 * SECS_IN_DAY),
+                _ => Duration::from_secs_f64(self.interval.as_secs_f64() * self.e_factor),
+            };
+            self.strike += 1;
+            self.repetition_required = false;
+        } else {
+            self.strike = 0;
+            self.interval = Duration::from_secs(SECS_IN_DAY);
+            self.repetition_required = true;
+        }
+
         self.e_factor = max_by(
-            self.e_factor + 0.1 - (5. - q) * (0.08 + (5. - q) * 0.02),
+            self.e_factor + 0.1 - (5. - q as f64) * (0.08 + (5. - q as f64) * 0.02),
             1.3,
             |a, b| a.partial_cmp(b).unwrap(),
         );
-        self.repetition_number += 1;
-        if (quality as u8) < 3 {
-            self.repetition_number = 1;
-            self.repetition_required = true;
-        } else {
-            self.repetition_required = false;
-        }
-        self.last_repetition = now;
     }
 
     fn next_repetition(&self, _retrievability_goal: f64) -> SystemTime {

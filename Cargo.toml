@@ -2,7 +2,7 @@
 name = "ssr-algorithms"
 description = "spaced repetition algorithms"
 license = "MIT"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 
 [dependencies]
