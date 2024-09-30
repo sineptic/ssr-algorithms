@@ -6,5 +6,6 @@ version = "0.4.0"
 edition = "2021"
 
 [dependencies]
+s_text_input_f = "0.3"
 serde = { version = "1.0", features = ["derive"] }
-ssr-core = { version = "0.25" }
+ssr-core = { version = "0.27" }

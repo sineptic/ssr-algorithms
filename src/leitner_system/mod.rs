@@ -1,69 +1,69 @@
 use level::Level;
 use serde::{Deserialize, Serialize};
-use ssr_core::task::{level::TaskLevel, Feedback, InterationItem, Task, UserInteraction};
-use std::{collections::HashSet, time::SystemTime};
+use ssr_core::task::{level::TaskLevel, Task};
+use std::time::SystemTime;
 
 mod level;
 
 #[derive(Serialize, Deserialize)]
 pub struct WriteAnswer {
     level: Level,
-    description: String,
-    correct_answers: HashSet<String>,
-    explanation: Option<String>,
+    input_blocks: s_text_input_f::Blocks,
+    correct_answer: s_text_input_f::Response,
 }
 
 impl WriteAnswer {
     pub fn new(
-        description: String,
-        correct_answers: impl IntoIterator<Item = String>,
-        explanation: Option<String>,
+        input_blocks: s_text_input_f::Blocks,
+        correct_answer: s_text_input_f::Response,
     ) -> Self {
         Self {
             level: Default::default(),
-            description,
-            correct_answers: correct_answers.into_iter().collect(),
-            explanation,
+            input_blocks,
+            correct_answer,
         }
     }
 }
 
 impl<'a> Task<'a> for WriteAnswer {
     type SharedState = ();
-    fn get_desctiption(&self) -> &str {
-        &self.description
-    }
 
     fn next_repetition(&self, _: f64) -> SystemTime {
         self.level.next_repetition(0.)
     }
 
-    fn complete(mut self, _: &mut (), interaction: &mut impl UserInteraction) -> (Self, Feedback) {
-        let user_answer = {
-            let mut user_answer = interaction.interact(vec![
-                InterationItem::Text(self.description.clone()),
-                InterationItem::BlankField,
-            ]);
-            assert!(user_answer.len() == 1);
-            user_answer.swap_remove(0)
-        };
-        match self.correct_answers.contains(&user_answer) {
+    fn complete(
+        &mut self,
+        _: &mut (),
+        interaction: &mut impl FnMut(
+            s_text_input_f::Blocks,
+        ) -> std::io::Result<s_text_input_f::Response>,
+    ) -> std::io::Result<()> {
+        let user_answer = interaction(self.input_blocks.clone())?;
+        match s_text_input_f::eq_response(&user_answer, &self.correct_answer, true, false) {
             false => {
+                let mut feedback = s_text_input_f::to_asnwered(
+                    self.input_blocks.clone(),
+                    user_answer,
+                    self.correct_answer.clone(),
+                );
+                feedback.push(s_text_input_f::Block::Paragraph(vec![]));
+                feedback.push(s_text_input_f::Block::OneOf(vec!["OK".to_string()]));
+                interaction(feedback)?;
                 self.level.update(&mut (), (SystemTime::now(), false));
-                let correct_answers = self.correct_answers.clone().into_iter().collect();
-                let explanation = self.explanation.clone();
-                (
-                    self,
-                    Feedback::WrongAnswer {
-                        correct_answers,
-                        explanation,
-                    },
-                )
             }
             true => {
+                let feedback = vec![
+                    s_text_input_f::Block::Paragraph(vec![s_text_input_f::ParagraphItem::Text(
+                        "All answers correct!".to_string(),
+                    )]),
+                    s_text_input_f::Block::OneOf(vec!["OK".to_string()]),
+                ];
+                interaction(feedback)?;
                 self.level.update(&mut (), (SystemTime::now(), true));
-                (self, Feedback::CorrectAnswer)
+                todo!()
             }
         }
+        Ok(())
     }
 }
