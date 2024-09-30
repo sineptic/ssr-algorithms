@@ -54,7 +54,7 @@ impl<'a> Task<'a> for WriteAnswer {
                     "incorrect response, but seemed easy to recall".to_string(),
                 ];
 
-                let mut feedback = s_text_input_f::to_asnwered(
+                let mut feedback = s_text_input_f::to_answered(
                     self.input_blocks.clone(),
                     user_answer,
                     self.correct_answer.clone(),

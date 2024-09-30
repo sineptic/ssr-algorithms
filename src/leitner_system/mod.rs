@@ -42,7 +42,7 @@ impl<'a> Task<'a> for WriteAnswer {
         let user_answer = interaction(self.input_blocks.clone())?;
         match s_text_input_f::eq_response(&user_answer, &self.correct_answer, true, false) {
             false => {
-                let mut feedback = s_text_input_f::to_asnwered(
+                let mut feedback = s_text_input_f::to_answered(
                     self.input_blocks.clone(),
                     user_answer,
                     self.correct_answer.clone(),
