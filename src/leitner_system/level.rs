@@ -17,7 +17,7 @@ impl Default for Level {
     }
 }
 
-impl<'a> TaskLevel<'a> for Level {
+impl TaskLevel<'_> for Level {
     type Context = (SystemTime, bool);
     type SharedState = ();
     fn update(&mut self, _: &mut (), (now, is_correct): Self::Context) {

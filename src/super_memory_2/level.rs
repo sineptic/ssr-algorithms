@@ -54,7 +54,7 @@ impl Display for Quality {
     }
 }
 
-impl<'a> TaskLevel<'a> for Level {
+impl TaskLevel<'_> for Level {
     type SharedState = ();
     type Context = (SystemTime, Quality);
     fn update(&mut self, _: &mut (), (now, quality): Self::Context) {

@@ -25,7 +25,7 @@ impl WriteAnswer {
     }
 }
 
-impl<'a> Task<'a> for WriteAnswer {
+impl Task<'_> for WriteAnswer {
     type SharedState = ();
 
     fn next_repetition(&self, _: f64) -> SystemTime {
