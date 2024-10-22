@@ -51,7 +51,7 @@ dependencies = [
 
 [[package]]
 name = "ssr-algorithms"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "s_text_input_f",
  "serde",
@@ -60,9 +60,9 @@ dependencies = [
 
 [[package]]
 name = "ssr-core"
-version = "0.29.0"
+version = "0.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56807154c360883798db0b32d150507031ba1760e157d3c4ccc0b708ea09a19a"
+checksum = "faef3d19adfb4c209e8a23d5e7d2b4907243222f8cea92faf73264422fb11fa1"
 dependencies = [
  "s_text_input_f",
  "serde",
