@@ -24,6 +24,44 @@ impl WriteAnswer {
             correct_answer,
         }
     }
+
+    fn gen_feedback_form(
+        &mut self,
+        user_answer: Vec<Vec<String>>,
+        directive: String,
+        qualities_strings: Vec<String>,
+    ) -> Vec<s_text_input_f::Block> {
+        let mut feedback = s_text_input_f::to_answered(
+            self.input_blocks.clone(),
+            user_answer,
+            self.correct_answer.clone(),
+        );
+        feedback.push(s_text_input_f::Block::Paragraph(vec![]));
+        feedback.push(s_text_input_f::Block::Paragraph(vec![ParagraphItem::Text(
+            directive,
+        )]));
+        feedback.push(s_text_input_f::Block::OneOf(qualities_strings));
+        feedback
+    }
+
+    fn get_feedback(
+        &mut self,
+        user_answer: Vec<Vec<String>>,
+        directive: String,
+        qualities_strings: Vec<String>,
+        interaction: &mut impl FnMut(
+            Vec<s_text_input_f::Block>,
+        ) -> Result<Vec<Vec<String>>, std::io::Error>,
+        qualities: [Quality; 3],
+    ) -> Result<Quality, std::io::Error> {
+        let feedback = self.gen_feedback_form(user_answer, directive, qualities_strings);
+        let user_feedback = interaction(feedback)?;
+        let i = s_text_input_f::response_as_one_of(user_feedback.last().unwrap().to_owned())
+            .unwrap()
+            .unwrap();
+        let quality = qualities[i];
+        Ok(quality)
+    }
 }
 
 impl Task<'_> for WriteAnswer {
@@ -43,7 +81,7 @@ impl Task<'_> for WriteAnswer {
         let user_answer = interaction(self.input_blocks.clone())?;
         match s_text_input_f::eq_response(&user_answer, &self.correct_answer, true, false) {
             false => {
-                let qualities = [
+                const QUALITIES: [Quality; 3] = [
                     Quality::CompleteBlackout,
                     Quality::IncorrectResponseButCorrectRemembered,
                     Quality::IncorrectResponseAndSeemedEasyToRecall,
@@ -53,50 +91,38 @@ impl Task<'_> for WriteAnswer {
                     "incorrect response, but correct remembered".to_string(),
                     "incorrect response, but seemed easy to recall".to_string(),
                 ];
+                let directive = "Choose difficulty:".to_string();
 
-                let mut feedback = s_text_input_f::to_answered(
-                    self.input_blocks.clone(),
+                let quality = self.get_feedback(
                     user_answer,
-                    self.correct_answer.clone(),
-                );
-                feedback.push(s_text_input_f::Block::Paragraph(vec![]));
-                feedback.push(s_text_input_f::Block::Paragraph(vec![ParagraphItem::Text(
-                    "Choose difficulty:".to_string(),
-                )]));
-                feedback.push(s_text_input_f::Block::OneOf(qualities_strings));
-
-                let user_feedback = interaction(feedback)?;
-                let i =
-                    s_text_input_f::response_as_one_of(user_feedback.last().unwrap().to_owned())
-                        .unwrap()
-                        .unwrap();
-                let quality = qualities[i];
+                    directive,
+                    qualities_strings,
+                    interaction,
+                    QUALITIES,
+                )?;
 
                 self.level.update(&mut (), (SystemTime::now(), quality));
             }
             true => {
-                let qualities = [
+                const QUALITIES: [Quality; 3] = [
                     Quality::CorrectResponseRecalledWithSeriousDifficulty,
                     Quality::CorrectResponseAfterHesitation,
                     Quality::PerfectResponse,
                 ];
-                let qualities_string = vec![
+                let qualities_strings = vec![
                     "recalled with serious difficulty".to_string(),
                     "correct, but after hesitation".to_string(),
                     "perfect response".to_string(),
                 ];
-                let feedback = vec![
-                    s_text_input_f::Block::Paragraph(vec![s_text_input_f::ParagraphItem::Text(
-                        "All answers correct!".to_string(),
-                    )]),
-                    s_text_input_f::Block::OneOf(qualities_string),
-                ];
-                let user_feedback = interaction(feedback)?;
-                let i =
-                    s_text_input_f::response_as_one_of(user_feedback.last().unwrap().to_owned())
-                        .unwrap()
-                        .unwrap();
-                let quality = qualities[i];
+                let directive = "All answers correct! Choose difficulty:".to_string();
+
+                let quality = self.get_feedback(
+                    user_answer,
+                    directive,
+                    qualities_strings,
+                    interaction,
+                    QUALITIES,
+                )?;
 
                 self.level.update(&mut (), (SystemTime::now(), quality));
             }
