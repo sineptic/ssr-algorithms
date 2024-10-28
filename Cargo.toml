@@ -2,7 +2,7 @@
 name = "ssr-algorithms"
 description = "spaced repetition algorithms"
 license = "MIT"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 
 [dependencies]
@@ -11,4 +11,4 @@ fsrs = "1.3.5"
 rand = "0.8.5"
 s_text_input_f = "0.3"
 serde = { version = "1.0", features = ["derive"] }
-ssr-core = "0.35"
+ssr-core = "0.37"

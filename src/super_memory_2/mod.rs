@@ -1,5 +1,5 @@
 use level::{Level, Quality};
-use s_text_input_f::ParagraphItem;
+use s_text_input_f::{BlocksWithAnswer, ParagraphItem};
 use serde::{Deserialize, Serialize};
 use ssr_core::task::{level::TaskLevel, Task};
 use std::time::SystemTime;
@@ -35,7 +35,10 @@ impl WriteAnswer {
             self.input_blocks.clone(),
             user_answer,
             self.correct_answer.clone(),
-        );
+        )
+        .into_iter()
+        .map(s_text_input_f::Block::Answered)
+        .collect::<Vec<_>>();
         feedback.push(s_text_input_f::Block::Paragraph(vec![]));
         feedback.push(s_text_input_f::Block::Paragraph(vec![ParagraphItem::Text(
             directive,
@@ -129,5 +132,20 @@ impl Task<'_> for WriteAnswer {
             }
         }
         Ok(())
+    }
+
+    fn new(input: s_text_input_f::BlocksWithAnswer) -> Self {
+        Self {
+            level: Default::default(),
+            input_blocks: input.blocks,
+            correct_answer: input.answer,
+        }
+    }
+
+    fn get_blocks(&self) -> s_text_input_f::BlocksWithAnswer {
+        BlocksWithAnswer {
+            blocks: self.input_blocks.clone(),
+            answer: self.correct_answer.clone(),
+        }
     }
 }

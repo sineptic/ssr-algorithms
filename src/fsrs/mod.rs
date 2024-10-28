@@ -1,4 +1,4 @@
-use s_text_input_f::ParagraphItem;
+use s_text_input_f::{BlocksWithAnswer, ParagraphItem};
 use serde::{Deserialize, Serialize};
 use ssr_core::task::level::TaskLevel;
 use std::time::SystemTime;
@@ -26,6 +26,63 @@ impl Default for Shared {
 }
 impl ssr_core::task::SharedState<'_> for Shared {}
 
+impl ssr_core::task::Task<'_> for Task {
+    type SharedState = Shared;
+
+    fn next_repetition(
+        &self,
+        shared_state: &Self::SharedState,
+        retrievability_goal: f64,
+    ) -> SystemTime {
+        if let Some(ref level) = self.level {
+            level.next_repetition(shared_state, retrievability_goal)
+        } else {
+            SystemTime::UNIX_EPOCH
+        }
+    }
+
+    fn complete(
+        &mut self,
+        shared_state: &mut Self::SharedState,
+        desired_retention: f64,
+        interaction: &mut impl FnMut(
+            s_text_input_f::Blocks,
+        ) -> std::io::Result<s_text_input_f::Response>,
+    ) -> std::io::Result<()> {
+        let review_time = chrono::Local::now();
+        let user_answer = interaction(self.input_blocks.clone())?;
+        let quality =
+            self.complete_inner(user_answer, shared_state, desired_retention, interaction)?;
+        if let Some(ref mut level) = self.level {
+            level.update(
+                shared_state,
+                RepetitionContext {
+                    quality,
+                    review_time,
+                },
+            );
+        } else {
+            self.level = Some(Level::new(quality, review_time));
+        }
+        Ok(())
+    }
+
+    fn new(input: s_text_input_f::BlocksWithAnswer) -> Self {
+        Self {
+            level: None,
+            input_blocks: input.blocks,
+            correct_answer: input.answer,
+        }
+    }
+
+    fn get_blocks(&self) -> s_text_input_f::BlocksWithAnswer {
+        BlocksWithAnswer {
+            blocks: self.input_blocks.clone(),
+            answer: self.correct_answer.clone(),
+        }
+    }
+}
+
 impl Task {
     pub fn new(
         input_blocks: s_text_input_f::Blocks,
@@ -47,7 +104,10 @@ impl Task {
             self.input_blocks.clone(),
             user_answer,
             self.correct_answer.clone(),
-        );
+        )
+        .into_iter()
+        .map(s_text_input_f::Block::Answered)
+        .collect::<Vec<_>>();
         feedback.push(s_text_input_f::Block::Paragraph(vec![]));
         feedback.push(s_text_input_f::Block::Paragraph(vec![ParagraphItem::Text(
             directive,
@@ -138,46 +198,5 @@ impl Task {
             interaction,
             vec![Quality::Again],
         )
-    }
-}
-impl ssr_core::task::Task<'_> for Task {
-    type SharedState = Shared;
-
-    fn next_repetition(
-        &self,
-        shared_state: &Self::SharedState,
-        retrievability_goal: f64,
-    ) -> SystemTime {
-        if let Some(ref level) = self.level {
-            level.next_repetition(shared_state, retrievability_goal)
-        } else {
-            SystemTime::UNIX_EPOCH
-        }
-    }
-
-    fn complete(
-        &mut self,
-        shared_state: &mut Self::SharedState,
-        desired_retention: f64,
-        interaction: &mut impl FnMut(
-            s_text_input_f::Blocks,
-        ) -> std::io::Result<s_text_input_f::Response>,
-    ) -> std::io::Result<()> {
-        let review_time = chrono::Local::now();
-        let user_answer = interaction(self.input_blocks.clone())?;
-        let quality =
-            self.complete_inner(user_answer, shared_state, desired_retention, interaction)?;
-        if let Some(ref mut level) = self.level {
-            level.update(
-                shared_state,
-                RepetitionContext {
-                    quality,
-                    review_time,
-                },
-            );
-        } else {
-            self.level = Some(Level::new(quality, review_time));
-        }
-        Ok(())
     }
 }
