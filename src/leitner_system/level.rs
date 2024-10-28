@@ -29,7 +29,7 @@ impl TaskLevel<'_> for Level {
         }
     }
 
-    fn next_repetition(&self, _: f64) -> SystemTime {
+    fn next_repetition(&self, _: &(), _: f64) -> SystemTime {
         const DAY: Duration = Duration::new(60 * 60 * 24, 0);
         self.last_repetition_time + DAY * self.group
     }

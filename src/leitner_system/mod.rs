@@ -28,13 +28,14 @@ impl WriteAnswer {
 impl Task<'_> for WriteAnswer {
     type SharedState = ();
 
-    fn next_repetition(&self, _: f64) -> SystemTime {
-        self.level.next_repetition(0.)
+    fn next_repetition(&self, shared: &(), _: f64) -> SystemTime {
+        self.level.next_repetition(shared, 0.)
     }
 
     fn complete(
         &mut self,
         _: &mut (),
+        _desired_retention: f64,
         interaction: &mut impl FnMut(
             s_text_input_f::Blocks,
         ) -> std::io::Result<s_text_input_f::Response>,
@@ -61,7 +62,6 @@ impl Task<'_> for WriteAnswer {
                 ];
                 interaction(feedback)?;
                 self.level.update(&mut (), (SystemTime::now(), true));
-                todo!()
             }
         }
         Ok(())

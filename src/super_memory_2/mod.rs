@@ -67,13 +67,14 @@ impl WriteAnswer {
 impl Task<'_> for WriteAnswer {
     type SharedState = ();
 
-    fn next_repetition(&self, retrievability_goal: f64) -> SystemTime {
-        self.level.next_repetition(retrievability_goal)
+    fn next_repetition(&self, shared: &(), retrievability_goal: f64) -> SystemTime {
+        self.level.next_repetition(shared, retrievability_goal)
     }
 
     fn complete(
         &mut self,
         _: &mut (),
+        _desired_retention: f64,
         interaction: &mut impl FnMut(
             s_text_input_f::Blocks,
         ) -> std::io::Result<s_text_input_f::Response>,

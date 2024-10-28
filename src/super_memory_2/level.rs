@@ -36,7 +36,6 @@ pub enum Quality {
     CorrectResponseAfterHesitation = 4,
     PerfectResponse = 5,
 }
-// TODO:
 impl Display for Quality {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(
@@ -84,7 +83,7 @@ impl TaskLevel<'_> for Level {
         );
     }
 
-    fn next_repetition(&self, _retrievability_goal: f64) -> SystemTime {
+    fn next_repetition(&self, _: &(), _retrievability_goal: f64) -> SystemTime {
         if self.repetition_required {
             SystemTime::now()
         } else {
