@@ -14,7 +14,7 @@ pub enum Quality {
     Easy = 4,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Level {
     pub last_quality: Quality,
     pub last_review: chrono::DateTime<chrono::Local>,

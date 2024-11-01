@@ -1,3 +1,4 @@
+use fsrs::{FSRSItem, FSRS};
 use s_text_input_f::{BlocksWithAnswer, ParagraphItem};
 use serde::{Deserialize, Serialize};
 use ssr_core::task::level::TaskLevel;
@@ -6,7 +7,7 @@ use std::time::SystemTime;
 mod level;
 use level::{Level, Quality, RepetitionContext};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Task {
     level: Option<Level>,
     input_blocks: s_text_input_f::Blocks,
@@ -25,6 +26,51 @@ impl Default for Shared {
     }
 }
 impl ssr_core::task::SharedState<'_> for Shared {}
+use itertools::Itertools;
+fn extract_first_long_term_reviews<'a>(
+    items: impl IntoIterator<Item = &'a FSRSItem>,
+) -> Vec<FSRSItem> {
+    items
+        .into_iter()
+        .filter_map(|i| {
+            let a = i
+                .reviews
+                .iter()
+                .take_while_inclusive(|r| r.delta_t < 1)
+                .copied()
+                .collect_vec();
+            if a.last()?.delta_t < 1 || a.len() == i.reviews.len() {
+                return None;
+            }
+            Some(FSRSItem { reviews: a })
+        })
+        .collect()
+}
+
+impl ssr_core::task::SharedStateExt<'_, Task> for Shared {
+    fn optimize<'b>(
+        &mut self,
+        tasks: impl IntoIterator<Item = &'b Task>,
+    ) -> Result<(), Box<dyn std::error::Error>>
+    where
+        Task: 'b,
+    {
+        let mut tasks = tasks
+            .into_iter()
+            .filter_map(|t| t.level.as_ref())
+            .map(|x| x.history.clone())
+            .filter(|x| x.reviews.iter().any(|r| r.delta_t != 0))
+            .collect::<Vec<_>>();
+        tasks.extend(extract_first_long_term_reviews(&tasks));
+        let fsrs = FSRS::new(None)?;
+        let best_params: [f32; 19] = fsrs
+            .compute_parameters(tasks, None)?
+            .try_into()
+            .expect("fsrs library should return exactly '19' weights");
+        self.weights = best_params;
+        Ok(())
+    }
+}
 
 impl ssr_core::task::Task<'_> for Task {
     type SharedState = Shared;
