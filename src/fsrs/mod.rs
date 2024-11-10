@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use ssr_core::task::level::TaskLevel;
 use std::time::SystemTime;
 
+use s_text_input_f as stif;
+
 mod level;
 use level::{Level, Quality, RepetitionContext};
 
@@ -12,6 +14,8 @@ pub struct Task {
     level: Option<Level>,
     input_blocks: s_text_input_f::Blocks,
     correct_answer: s_text_input_f::Response,
+    #[serde(default)]
+    other_answers: Vec<s_text_input_f::Response>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -118,6 +122,7 @@ impl ssr_core::task::Task<'_> for Task {
             level: None,
             input_blocks: input.blocks,
             correct_answer: input.answer,
+            other_answers: Vec::new(),
         }
     }
 
@@ -125,6 +130,21 @@ impl ssr_core::task::Task<'_> for Task {
         BlocksWithAnswer {
             blocks: self.input_blocks.clone(),
             answer: self.correct_answer.clone(),
+        }
+    }
+}
+
+pub enum Correctness {
+    Wrong,
+    DefaultCorrect,
+    OtherCorrect { index: usize },
+}
+impl Correctness {
+    pub fn is_correct(&self) -> bool {
+        match self {
+            Correctness::Wrong => false,
+            Correctness::DefaultCorrect => true,
+            Correctness::OtherCorrect { index: _ } => true,
         }
     }
 }
@@ -138,6 +158,7 @@ impl Task {
             level: Default::default(),
             input_blocks,
             correct_answer,
+            other_answers: Vec::new(),
         }
     }
     fn gen_feedback_form(
@@ -146,14 +167,15 @@ impl Task {
         directive: String,
         qualities_strings: Vec<String>,
     ) -> Vec<s_text_input_f::Block> {
-        let mut feedback = s_text_input_f::to_answered(
-            self.input_blocks.clone(),
-            user_answer,
-            self.correct_answer.clone(),
-        )
-        .into_iter()
-        .map(s_text_input_f::Block::Answered)
-        .collect::<Vec<_>>();
+        let correct_answer = match self.correctness(&user_answer) {
+            Correctness::Wrong | Correctness::DefaultCorrect => self.correct_answer.clone(),
+            Correctness::OtherCorrect { index } => self.other_answers[index].clone(),
+        };
+        let mut feedback =
+            s_text_input_f::to_answered(self.input_blocks.clone(), user_answer, correct_answer)
+                .into_iter()
+                .map(s_text_input_f::Block::Answered)
+                .collect::<Vec<_>>();
         feedback.push(s_text_input_f::Block::Paragraph(vec![]));
         feedback.push(s_text_input_f::Block::Paragraph(vec![ParagraphItem::Text(
             directive,
@@ -162,7 +184,7 @@ impl Task {
         feedback
     }
 
-    fn get_feedback(
+    fn get_feedback<T: Copy>(
         &mut self,
         user_answer: Vec<Vec<String>>,
         directive: String,
@@ -170,8 +192,8 @@ impl Task {
         interaction: &mut impl FnMut(
             Vec<s_text_input_f::Block>,
         ) -> Result<Vec<Vec<String>>, std::io::Error>,
-        qualities: Vec<Quality>,
-    ) -> Result<Quality, std::io::Error> {
+        qualities: Vec<T>,
+    ) -> Result<T, std::io::Error> {
         let feedback = self.gen_feedback_form(user_answer, directive, qualities_strings);
         let user_feedback = interaction(feedback)?;
         let i = s_text_input_f::response_as_one_of(user_feedback.last().unwrap().to_owned())
@@ -189,13 +211,23 @@ impl Task {
         interaction: &mut impl FnMut(s_text_input_f::Blocks) -> std::io::Result<Vec<Vec<String>>>,
     ) -> std::io::Result<Quality> {
         let next_states = self.next_states(shared_state, retrievability_goal);
-        Ok(
-            match s_text_input_f::eq_response(&user_answer, &self.correct_answer, true, false) {
-                false => self.feedback_wrong(user_answer, next_states, interaction)?,
-                true => self.feedback_correct(user_answer, next_states, interaction)?,
-            },
-        )
+        Ok(match self.correctness(&user_answer).is_correct() {
+            true => self.feedback_correct(user_answer, next_states, interaction)?,
+            false => self.feedback_wrong(user_answer, next_states, interaction)?,
+        })
     }
+    fn correctness(&mut self, user_answer: &Vec<Vec<String>>) -> Correctness {
+        if stif::eq_response(&self.correct_answer, user_answer, true, false) {
+            return Correctness::DefaultCorrect;
+        }
+        for (index, ans) in self.other_answers.iter().enumerate() {
+            if stif::eq_response(ans, user_answer, true, false) {
+                return Correctness::OtherCorrect { index };
+            }
+        }
+        Correctness::Wrong
+    }
+
     fn next_states(&self, shared: &Shared, retrievability_goal: f64) -> fsrs::NextStates {
         let fsrs = level::fsrs(shared);
         let now = chrono::Local::now();
@@ -237,12 +269,27 @@ impl Task {
         next_states: fsrs::NextStates,
         interaction: &mut impl FnMut(s_text_input_f::Blocks) -> std::io::Result<Vec<Vec<String>>>,
     ) -> std::io::Result<Quality> {
-        self.get_feedback(
-            user_answer,
+        #[derive(Clone, Copy)]
+        enum Feedback {
+            Wrong,
+            ActuallyCorrect,
+        }
+        let result = self.get_feedback(
+            user_answer.clone(),
             "Your answer is wrong.".into(),
-            vec![format!("OK {}h", next_states.again.interval * 24.)],
+            vec![
+                format!("OK {}h", next_states.again.interval * 24.),
+                "It is actually correct".into(),
+            ],
             interaction,
-            vec![Quality::Again],
-        )
+            vec![Feedback::Wrong, Feedback::ActuallyCorrect],
+        )?;
+        match result {
+            Feedback::Wrong => Ok(Quality::Again),
+            Feedback::ActuallyCorrect => {
+                self.other_answers.push(user_answer.clone());
+                self.feedback_correct(user_answer, next_states, interaction)
+            }
+        }
     }
 }
