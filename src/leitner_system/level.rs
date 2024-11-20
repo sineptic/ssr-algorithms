@@ -1,6 +1,7 @@
+use std::time::{Duration, SystemTime};
+
 use serde::{Deserialize, Serialize};
 use ssr_core::task::level::TaskLevel;
-use std::time::{Duration, SystemTime};
 
 #[derive(Serialize, Deserialize)]
 pub struct Level {

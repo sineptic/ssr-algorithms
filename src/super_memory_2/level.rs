@@ -1,10 +1,11 @@
-use serde::{Deserialize, Serialize};
-use ssr_core::task::level::TaskLevel;
 use std::{
     cmp::max_by,
     fmt::Display,
     time::{Duration, SystemTime},
 };
+
+use serde::{Deserialize, Serialize};
+use ssr_core::task::level::TaskLevel;
 
 #[derive(Serialize, Deserialize)]
 pub struct Level {
