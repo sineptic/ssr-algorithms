@@ -2631,6 +2631,8 @@ dependencies = [
 [[package]]
 name = "ssr-core"
 version = "0.38.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22b7ffb8f0d02966851364e52220b3a815e903af831ede21256a4c60bf4a3ce4"
 dependencies = [
  "s_text_input_f",
  "serde",
